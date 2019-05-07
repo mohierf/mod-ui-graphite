@@ -28,16 +28,33 @@
 This class is for linking the WebUI with Graphite,
 for mainly get graphs and links.
 """
-
+import os
 import re
 import socket
 import time
 
 from .graphite_utils import GraphStyle, GraphiteMetric
 from .util import GraphFactory
-from shinken.log import logger
-from shinken.basemodule import BaseModule
-from shinken.misc.perfdata import PerfDatas
+
+# Check if Alignak is installed
+ALIGNAK = os.environ.get('ALIGNAK_DAEMON', None) is not None
+print("[UI-Graphite] Underlying monitoring framework: %s" % ('Alignak' if ALIGNAK else 'Shinken'))
+
+# Alignak / Shinken base module are slightly different
+if ALIGNAK:
+    # Specific logger configuration
+    import logging
+    from alignak.log import ALIGNAK_LOGGER_NAME
+
+    logger = logging.getLogger(ALIGNAK_LOGGER_NAME + ".webui.ui_graphite")
+
+    from alignak.basemodule import BaseModule
+    from alignak.misc.perfdata import PerfDatas
+else:
+    # Shinken logger configuration
+    from shinken.log import logger
+    from shinken.basemodule import BaseModule
+    from shinken.misc.perfdata import PerfDatas
 
 
 properties = {
@@ -47,10 +64,15 @@ properties = {
 
 
 # called by the plugin manager
-def get_instance(plugin):
-    logger.info("[Graphite UI] Get a graphite UI data module for plugin %s" % plugin.get_name())
+def get_instance(mod_conf):
+    if ALIGNAK:
+        logger.info("Give an instance of Graphite_Webui for alias: %s", mod_conf.module_alias)
+    else:
+        logger.info("Give an instance of Graphite_Webui for alias: %s", mod_conf.module_name)
 
-    instance = Graphite_Webui(plugin)
+    instance = Graphite_Webui(mod_conf)
+    print("Got an instance: %s" % instance)
+    print("Got an instance: %s" % type(instance))
     return instance
 
 
@@ -95,6 +117,16 @@ class Graphite_Webui(BaseModule):
         self.tz = getattr(modconf, 'tz', 'Europe/Paris')
         logger.info("[Graphite UI] Configuration - Graphite time zone: %s", self.tz)
 
+    def init(self):
+        """
+        Called by the modules manager so we can do init stuff
+
+        :return:
+        """
+        logger.info("Initializing ...")
+        # Return True to confirm correct initialization
+        return True
+
     @property
     def uri(self):
         return self._uri
@@ -128,9 +160,14 @@ class Graphite_Webui(BaseModule):
         height = getattr(modconf, 'detail_view_height', '308')
         self.styles['detail'] = GraphStyle(width=width, height=height, font_size=font,line_style=lineMode)
 
-    # Try to connect if we got true parameter
     def init(self):
-        pass
+        """
+        Called by Broker so we can do init stuff
+
+        :return:
+        """
+        # Return True to confirm correct initialization
+        return True
 
     # To load the webui application
     def load(self, app):
