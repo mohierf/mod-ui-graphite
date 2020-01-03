@@ -167,15 +167,15 @@ class GraphFactory(object):
     # Ask for an host or a service the graph UI that the UI should
     # give to get the graph image link and Graphite page link too.
     def get_graph_uris(self):
-        self.logger.debug("[Graphite UI] get graphs URI for %s/%s (%s view)", self.hostname, self.servicename,
-                          self.source)
+        self.logger.debug("[Graphite UI] get graphs URI for %s/%s (%s view)",
+                          self.hostname, self.servicename, self.source)
 
         try:
             return self._get_uris_from_file()
         except TemplateNotFound:
             pass
         except:
-            self.logger.exception('Error while generating graph uris')
+            self.logger.exception('Error while getting URI from file')
             return []
 
         try:
@@ -207,7 +207,8 @@ class GraphFactory(object):
 
             # TODO - Shinken appears to store these in graphite, rather than using the current value as a constant line,
             # TODO - use the appropriate time series from graphite
-            # NOTE - the Graphite module allows the filtering of constant metrics to avoid storing warn, crit, ... in Graphite!
+            # NOTE - the Graphite module allows the filtering of constant metrics
+            # to avoid storing warn, crit, ... in Graphite!
             # NOTE - constantLine function is much appropriate in this case.
             # colors = {'warning': 'orange', 'critical': 'red', 'min': 'blue', 'max': 'black'}
             for t in ('warning', 'critical', 'min', 'max'):
@@ -254,31 +255,36 @@ class GraphFactory(object):
         # Do we have a template for the given source?
         # we do not catch the exception here as it is caught by the calling function
         template_file = self.template_path
-        self.logger.debug("[Graphite UI] Found template: %s" % template_file)
+        self.logger.debug("[Graphite UI] Found a template: %s", template_file)
 
         try:
             return self._parse_json_template(template_file)
         except JSONTemplate.NotJsonTemplate:
+            self.logger.debug("[Graphite UI] template is not a Json file")
             pass
 
         graph_end = graphite_time(self.graph_end)
         graph_start = graphite_time(self.graph_start)
+        tz = self.cfg.tz
         template_html = ''
         with open(template_file, 'r') as template_file:
             template_html += template_file.read()
         # Read the template file, as template string python object
         html = Template(template_html)
         # Build the dict to instantiate the template string
+        self.logger.debug("[Graphite UI] template: %s", html)
 
         context = dict(
             uri=self.cfg.uri,
-            host=GraphiteMetric.normalize(
-                GraphiteMetric.join(self.prefix, self.hostname, self.cfg.graphite_data_source)),
-            service=GraphiteMetric.normalize(GraphiteMetric.join(self.servicename, self.postfix)),
+            host=GraphiteMetric.normalize(GraphiteMetric.join(self.prefix,
+                                                              self.hostname,
+                                                              self.cfg.graphite_data_source)),
+            service=GraphiteMetric.normalize(GraphiteMetric.join(self.servicename,
+                                                                 self.postfix)),
+            tz=tz,
             end=graph_end,
             start=graph_start
         )
-
 
         # Split, we may have several images.
         for img in html.substitute(context).split('\n'):
@@ -286,6 +292,7 @@ class GraphFactory(object):
                 continue
             graph = GraphiteURL.parse(img, style=self.style)
             uris.append(dict(link=graph.url('composer'), img_src=graph.url('render')))
+        self.logger.debug("[Graphite UI] uris: %s", uris)
         return uris
 
 

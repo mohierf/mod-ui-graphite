@@ -70,10 +70,7 @@ def get_instance(mod_conf):
     else:
         logger.info("Give an instance of Graphite_Webui for alias: %s", mod_conf.module_name)
 
-    instance = Graphite_Webui(mod_conf)
-    print("Got an instance: %s" % instance)
-    print("Got an instance: %s" % type(instance))
-    return instance
+    return Graphite_Webui(mod_conf)
 
 
 class Graphite_Webui(BaseModule):
@@ -82,40 +79,41 @@ class Graphite_Webui(BaseModule):
         self._uri = ''
         self.app = None
 
-        # service name to use for host check
-        self.hostcheck = getattr(modconf, 'hostcheck', '')
-
         # load styles
         self.styles = dict(default=GraphStyle())
         self._load_styles(modconf)
 
         self.uri = getattr(modconf, 'uri', '')
-        logger.info("[Graphite UI] Configuration - uri: %s", self.uri)
-
-        self.templates_path = getattr(modconf, 'templates_path', '/tmp')
-        logger.info("[Graphite UI] Configuration - templates path: %s", self.templates_path)
+        logger.info("[Graphite UI] Graphite uri: %s", self.uri)
 
         # optional "sub-folder" in graphite to hold the data of a specific host
         self.prefix = getattr(modconf, 'prefix', '')
-        logger.info("[Graphite UI] Configuration - Graphite prefix: %s", self.prefix)
+        logger.info("[Graphite UI] Graphite prefix: %s", self.prefix)
 
         # optional host "sub-folder" in graphite to hold the data of a specific host
         self.graphite_data_source = getattr(modconf, 'graphite_data_source', '')
-        logger.info("[Graphite UI] Configuration - Graphite data source: %s", self.graphite_data_source)
+        logger.info("[Graphite UI] Graphite data source: %s", self.graphite_data_source)
+
+        # service name to use for host check
+        self.hostcheck = getattr(modconf, 'hostcheck', '')
+        logger.info("[Graphite UI] host check service name: %s", self.hostcheck)
+
+        self.templates_path = getattr(modconf, 'templates_path', '/tmp')
+        logger.info("[Graphite UI] templates path: %s", self.templates_path)
 
         # Use warning, critical, min, max
         for s in ('warning', 'critical', 'min', 'max'):
             n = 'use_%s' % s
             setattr(self, n, bool(getattr(modconf, n, True)))
-            logger.info("[Graphite UI] Configuration - %s metrics: %d", n, getattr(self, n))
+            logger.info("[Graphite UI] %s metrics: %d", n, getattr(self, n))
 
             n = 'color_%s' % s
             setattr(self, n, getattr(modconf, n, 'black'))
-            logger.info("[Graphite UI] Configuration - %s metrics: %s", n, getattr(self, n))
+            logger.info("[Graphite UI] %s metrics: %s", n, getattr(self, n))
 
         # Graphs parameters
         self.tz = getattr(modconf, 'tz', 'Europe/Paris')
-        logger.info("[Graphite UI] Configuration - Graphite time zone: %s", self.tz)
+        logger.info("[Graphite UI] Graphite time zone: %s", self.tz)
 
     def init(self):
         """
@@ -135,7 +133,7 @@ class Graphite_Webui(BaseModule):
     def uri(self, value):
         uri = value.strip()
         if not uri:
-            raise ValueError('Invalid URI provided to yhe WebUI Graphite module.')
+            raise ValueError('Invalid URI provided to the WebUI Graphite module.')
         if not uri.endswith('/'):
             uri += '/'
 
