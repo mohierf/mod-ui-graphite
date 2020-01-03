@@ -291,6 +291,9 @@ class GraphFactory(object):
             if not img:
                 continue
             graph = GraphiteURL.parse(img, style=self.style)
+            # Set timezone for the graph if configured and not defined in the template
+            if self.cfg.tz and graph.tz is None:
+                graph.tz = self.cfg.tz
             uris.append(dict(link=graph.url('composer'), img_src=graph.url('render')))
         self.logger.debug("[Graphite UI] uris: %s", uris)
         return uris
