@@ -33,7 +33,7 @@ import re
 import socket
 import time
 
-from .graphite_utils import GraphStyle, GraphiteMetric
+from .graphite_utils import GraphStyle
 from .util import GraphFactory
 
 # Check if Alignak is installed
@@ -115,16 +115,6 @@ class Graphite_Webui(BaseModule):
         self.tz = getattr(modconf, 'tz', 'Europe/Paris')
         logger.info("[Graphite UI] Graphite time zone: %s", self.tz)
 
-    def init(self):
-        """
-        Called by the modules manager so we can do init stuff
-
-        :return:
-        """
-        logger.info("Initializing ...")
-        # Return True to confirm correct initialization
-        return True
-
     @property
     def uri(self):
         return self._uri
@@ -150,22 +140,23 @@ class Graphite_Webui(BaseModule):
         font = getattr(modconf, 'dashboard_view_font', '8')
         width = getattr(modconf, 'dashboard_view_width', '320')
         height = getattr(modconf, 'dashboard_view_height', '240')
-        self.styles['dashboard'] = GraphStyle(width=width, height=height, font_size=font,line_style=lineMode)
+        self.styles['dashboard'] = GraphStyle(width=width, height=height, font_size=font, line_style=lineMode)
 
         # Specify font and picture size for element view
         font = getattr(modconf, 'detail_view_font', '8')
         width = getattr(modconf, 'detail_view_width', '586')
         height = getattr(modconf, 'detail_view_height', '308')
-        self.styles['detail'] = GraphStyle(width=width, height=height, font_size=font,line_style=lineMode)
+        self.styles['detail'] = GraphStyle(width=width, height=height, font_size=font, line_style=lineMode)
 
     def init(self):
-        """
-        Called by Broker so we can do init stuff
-
-        :return:
-        """
+        """Called by Broker so we can do init stuff"""
+        logger.info("Initializing ...")
         # Return True to confirm correct initialization
         return True
+
+    def do_loop_turn(self):
+        """Defined because it is an abstract method in our base class"""
+        time.sleep(0.1)
 
     # To load the webui application
     def load(self, app):
@@ -202,7 +193,7 @@ class Graphite_Webui(BaseModule):
 
             # Get or ignore extra values depending upon module configuration
             for s in ('warning', 'critical', 'min', 'max'):
-                if getattr(e, s) is not None  and getattr(self, 'use_%s' % s):
+                if getattr(e, s) is not None and getattr(self, 'use_%s' % s):
                     metric[s] = getattr(e, s)
 
             result.append(metric)
@@ -221,4 +212,3 @@ class Graphite_Webui(BaseModule):
         logger.debug("[Graphite UI] get_graph_uris, start/end: %d/%d", graph_start, graph_end)
         factory = GraphFactory(element, graph_start, graph_end, source, cfg=self, log=logger)
         return factory.get_graph_uris()
-

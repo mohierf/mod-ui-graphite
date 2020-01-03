@@ -101,6 +101,7 @@ class GraphiteTarget(object):
             if color is not None:
                 self.color = color
         elif isinstance(target, dict):
+            # pylint: disable=non-parent-init-called
             self.__init__(**target)
         else:
             self.target = self.from_string(target)
@@ -116,8 +117,8 @@ class GraphiteTarget(object):
         return s
 
     @classmethod
-    def from_string(self, target='', ):
-        if not isinstance(target, basestring):
+    def from_string(cls, target='', ):
+        if not isinstance(target, str):
             return target
 
         def parse_graphite_args(part):
@@ -164,12 +165,13 @@ class GraphiteTarget(object):
 # programmatic representation of a graphite URL
 # TODO - Add additional properties (fgColor, bgColor, unitSystem)
 class GraphiteURL(object):
-    def __init__(self, server='', title='', style=GraphStyle(), start=0, end=0, min=None, max=None, targets=None,
-                 **kwargs):
+    # pylint: disable=redefined-builtin
+    def __init__(self, server='', title='', style=GraphStyle(), start=0, end=0,
+                 min=None, max=None, targets=None, **kwargs):
         self._start = ''
         self._end = ''
         if server.endswith('/'):
-            server=server[:-1]
+            server = server[:-1]
         self.server = server
         self.start = start
         self.end = end
@@ -189,7 +191,6 @@ class GraphiteURL(object):
         self.tz = None
         if 'tz' in kwargs:
             self.tz = kwargs['tz']
-        pass
 
     # ensure that the start and end times we are given are in the correct format
     @property
@@ -218,7 +219,7 @@ class GraphiteURL(object):
             if not self._targets:
                 self._targets = '&'.join(['target=%s' % t for t in self.targets])
             return self._targets
-        except:
+        except Exception:
             logging.exception('Unable to generate target string')
             logging.error(self.targets)
             raise
@@ -268,7 +269,7 @@ class GraphiteURL(object):
         del query['target']
         # extras
         for k, v in query.items():
-            logging.warn('unrecognized parameter "%s" : %r', k, v)
+            logging.warning('graphite_utils.py - unrecognized parameter "%s" : %r', k, v)
         return obj
 
     def url(self, module='render'):

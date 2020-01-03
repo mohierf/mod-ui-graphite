@@ -1,0 +1,32 @@
+# Python requirements for unit tests
+-r ../requirements.txt
+
+# Shinken
+# -e git+https://github.com/naparuba/shinken#egg=shinken
+# Alignak
+-e git+https://github.com/Alignak-monitoring/alignak.git@develop#egg=alignak
+
+# Static code analysis
+pylint
+pycodestyle
+pep257
+
+# Comment because no tests are executed!
+unittest2
+mock
+
+# Nosetests
+# nose
+# nose-cov
+
+# Use py.test as test-runner
+pytest
+pytest-cov
+
+# For coveralls: coveralls 1.9.2 has requirement coverage<5.0,>=3.6, but you'll have coverage 5.0 which is incompatible.
+# coverage
+coverage
+# coveralls
+
+# Report coverage results to codecov.io
+codecov

@@ -9,7 +9,7 @@
     Alignak - WebUI module to provide Graphite views in the Web UI
 """
 # Package name
-__pkg_name__ = u"alignak_webui_graphite2"
+__pkg_name__ = u"alignak_webui_graphite"
 
 # Module type for PyPI keywords
 # Used for:

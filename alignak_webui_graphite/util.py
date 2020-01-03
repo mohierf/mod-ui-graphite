@@ -61,17 +61,14 @@ class GraphFactory(object):
                         self.element.customs["_GRAPHITE_PRE"],
                         self.element.customs["_GRAPHITE_GROUP"]
                     )
-                else:
-                    return GraphiteMetric.join(
-                        self.cfg.prefix,
-                        self.element.customs["_GRAPHITE_PRE"]
-                    )
-            else:
-                if "_GRAPHITE_GROUP" in self.element.customs:
-                    return GraphiteMetric.join(
-                        self.cfg.prefix,
-                        self.element.customs["_GRAPHITE_GROUP"]
-                    )
+
+                return GraphiteMetric.join(self.cfg.prefix, self.element.customs["_GRAPHITE_PRE"])
+
+            if "_GRAPHITE_GROUP" in self.element.customs:
+                return GraphiteMetric.join(
+                    self.cfg.prefix,
+                    self.element.customs["_GRAPHITE_GROUP"]
+                )
         elif self.element_type == 'service':
             if "_GRAPHITE_PRE" in self.element.host.customs:
                 if "_GRAPHITE_GROUP" in self.element.host.customs:
@@ -80,17 +77,14 @@ class GraphFactory(object):
                         self.element.host.customs["_GRAPHITE_PRE"],
                         self.element.host.customs["_GRAPHITE_GROUP"]
                     )
-                else:
-                    return GraphiteMetric.join(
-                        self.cfg.prefix,
-                        self.element.host.customs["_GRAPHITE_PRE"]
-                    )
-            else:
-                if "_GRAPHITE_GROUP" in self.element.host.customs:
-                    return GraphiteMetric.join(
-                        self.cfg.prefix,
-                        self.element.host.customs["_GRAPHITE_GROUP"]
-                    )
+
+                return GraphiteMetric.join(self.cfg.prefix, self.element.host.customs["_GRAPHITE_PRE"])
+
+            if "_GRAPHITE_GROUP" in self.element.host.customs:
+                return GraphiteMetric.join(
+                    self.cfg.prefix,
+                    self.element.host.customs["_GRAPHITE_GROUP"]
+                )
         return self.cfg.prefix
 
     # property to retrieve the graphite postfix for a host
@@ -149,8 +143,8 @@ class GraphFactory(object):
     def servicename(self):
         if self.element_type == 'service':
             return GraphiteMetric.normalize_name(self.element.service_description)
-        else:
-            return GraphiteMetric.normalize_name(self.cfg.hostcheck)
+
+        return GraphiteMetric.normalize_name(self.cfg.hostcheck)
 
     # retrieve a style with graceful fallback
     def get_style(self, name):
@@ -174,13 +168,13 @@ class GraphFactory(object):
             return self._get_uris_from_file()
         except TemplateNotFound:
             pass
-        except:
+        except Exception:
             self.logger.exception('Error while getting URI from file')
             return []
 
         try:
             return self._generate_graph_uris()
-        except:
+        except Exception:
             self.logger.exception('Error while generating graph uris')
             return []
 
@@ -188,7 +182,7 @@ class GraphFactory(object):
     def _generate_graph_uris(self):
         couples = self.cfg.get_metric_and_value(self.servicename, self.element.perf_data)
 
-        if len(couples) == 0:
+        if not couples:
             self.logger.debug('No perfdata found to graph')
             return []
 
@@ -230,7 +224,7 @@ class GraphFactory(object):
     def _parse_json_template(self, template):
         try:
             template = JSONTemplate(template)
-        except:
+        except Exception:
             raise JSONTemplate.NotJsonTemplate()
 
         graph_end = graphite_time(self.graph_end)
@@ -261,7 +255,6 @@ class GraphFactory(object):
             return self._parse_json_template(template_file)
         except JSONTemplate.NotJsonTemplate:
             self.logger.debug("[Graphite UI] template is not a Json file")
-            pass
 
         graph_end = graphite_time(self.graph_end)
         graph_start = graphite_time(self.graph_start)
@@ -307,7 +300,7 @@ class JSONTemplate(object):
         try:
             if os.path.isfile(data):
                 data = open(data, 'rt')
-        except Exception as e:
+        except Exception:
             logger.debug('Unable to read from path %s', data)
         try:
             if hasattr(data, 'read'):
@@ -323,12 +316,14 @@ class JSONTemplate(object):
         return JSONTemplate._fill_template(self.data, ctx)
 
     @classmethod
-    def _fill_template(self, obj, ctx):
+    def _fill_template(cls, obj, ctx):
         if hasattr(obj, 'format'):  # string or stringlike
             return obj.format(**ctx)
-        elif hasattr(obj, 'items'):  # dictionary like we hope
-            return dict((k, self._fill_template(v, ctx)) for k, v in obj.items())
-        elif hasattr(obj, '__iter__'):  # its iterable so treat it as a list
-            return [self._fill_template(v, ctx) for v in obj]
-        else:
-            return obj
+
+        if hasattr(obj, 'items'):  # dictionary like we hope
+            return dict((k, cls._fill_template(v, ctx)) for k, v in obj.items())
+
+        if hasattr(obj, '__iter__'):  # its iterable so treat it as a list
+            return [cls._fill_template(v, ctx) for v in obj]
+
+        return obj

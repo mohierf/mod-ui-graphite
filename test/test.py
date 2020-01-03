@@ -1,5 +1,8 @@
 import unittest
-import urlparse
+try:
+    from urllib.parse import urlparse, parse_qs
+except ImportError:
+    from urlparse import urlparse, parse_qs
 import sys
 import os
 import json
@@ -7,17 +10,18 @@ import time
 from datetime import datetime
 import logging
 
+from alignak_webui_graphite.util import JSONTemplate, GraphFactory, TemplateNotFound
+from alignak_webui_graphite.graphite_utils import GraphStyle, GraphiteTarget, GraphiteURL, GraphiteMetric, graphite_time, \
+    GraphiteRewriteRule, GraphiteFunction, GraphiteString
+from alignak_webui_graphite.module import Graphite_Webui
+from fake_shinken import Host, CheckCommand, Service, ShinkenModuleConfig
+
+
 logging.basicConfig(level=logging.INFO)
 
 FILE_PATH = os.path.dirname(os.path.realpath(__file__))
 ROOT_PATH = os.path.abspath(os.path.join(FILE_PATH, '../'))
 sys.path.append(ROOT_PATH)
-
-from alignak_webui_graphite2.util import JSONTemplate, GraphFactory, TemplateNotFound
-from alignak_webui_graphite2.graphite_utils import GraphStyle, GraphiteTarget, GraphiteURL, GraphiteMetric, graphite_time, \
-    GraphiteRewriteRule, GraphiteFunction, GraphiteString
-from alignak_webui_graphite2.module import Graphite_Webui
-from fake_shinken import Host, CheckCommand, Service, ShinkenModuleConfig
 
 os.environ["TZ"] = "UTC"
 
@@ -189,33 +193,33 @@ class TestGraphiteTime(unittest.TestCase):
 class TestGraphiteStyle(unittest.TestCase):
     def test_base(self):
         style = GraphStyle()
-        style = urlparse.parse_qs(str(style))
+        style = parse_qs(str(style))
         self.assertEqual(style, {'width': ['586'], 'height': ['308'], 'fontSize': ['8']})
 
     def test_width(self):
         style = GraphStyle(width=10)
-        style = urlparse.parse_qs(str(style))
+        style = parse_qs(str(style))
         self.assertEqual(style, {'width': ['10'], 'height': ['308'], 'fontSize': ['8']})
         with self.assertRaises(ValueError):
             GraphStyle(width='test')
 
     def test_height(self):
         style = GraphStyle(height=7)
-        style = urlparse.parse_qs(str(style))
+        style = parse_qs(str(style))
         self.assertEqual(style, {'width': ['586'], 'height': ['7'], 'fontSize': ['8']})
         with self.assertRaises(ValueError):
             GraphStyle(height='test')
 
     def test_font(self):
         style = GraphStyle(font_size=16)
-        style = urlparse.parse_qs(str(style))
+        style = parse_qs(str(style))
         self.assertEqual(style, {'width': ['586'], 'height': ['308'], 'fontSize': ['16']})
         with self.assertRaises(ValueError):
             GraphStyle(font_size='test')
 
     def test_line_style(self):
         style = GraphStyle(line_style='connected')
-        style = urlparse.parse_qs(str(style))
+        style = parse_qs(str(style))
         self.assertEqual(style, {'width': ['586'], 'height': ['308'], 'fontSize': ['8'], 'lineMode': ['connected']})
 
 
@@ -273,12 +277,14 @@ class TestJSONTemplate(unittest.TestCase):
     ]
 
     def test_load_file_path(self):
-        file_path = os.path.join(ROOT_PATH, 'templates', 'graphite', 'check-host-alive.graph')
+        file_path = os.path.join(ROOT_PATH, 'alignak_webui_graphite', 'etc', 'modules',
+                                 'ui-graphite-templates', 'check-host-alive.graph')
         template = JSONTemplate(file_path)
         self.assertEqual(template.data, self.data)
 
     def test_load_bad_path(self):
-        file_path = os.path.join(ROOT_PATH, 'templates', 'graphite', 'check_cpu.graph')
+        file_path = os.path.join(ROOT_PATH, 'alignak_webui_graphite', 'etc', 'modules',
+                                 'ui-graphite-templates', 'check_cpu.graph')
         with self.assertRaises(JSONTemplate.NotJsonTemplate):
             JSONTemplate(file_path)
 
@@ -287,7 +293,8 @@ class TestJSONTemplate(unittest.TestCase):
             JSONTemplate('file_path')
 
     def test_load_file(self):
-        file_path = os.path.join(ROOT_PATH, 'templates', 'graphite', 'check-host-alive.graph')
+        file_path = os.path.join(ROOT_PATH, 'alignak_webui_graphite', 'etc', 'modules',
+                                 'ui-graphite-templates', 'check-host-alive.graph')
         template = JSONTemplate(open(file_path, 'rt'))
         self.assertEqual(template.data, self.data)
 
@@ -409,19 +416,20 @@ class TestGraphiteRewrite(unittest.TestCase):
         self.assertEqual(r, base)
         r = GraphiteMetric.rewrite('world' + base + '_sum')
         self.assertEqual(r, 'hello.world' + base)
-        pass
 
 
 class TestGraphFactory(unittest.TestCase):
     def setUp(self):
         self.maxDiff = None
         self.host = Host('testhost', CheckCommand('check-host-alive'))
-        self.service_cpu = Service('check_cpu', self.host, CheckCommand('check_cpu'))
+        self.service_cpu = Service('check_cpu', self.host, CheckCommand('check_cpu_-4h'))
         self.service_test = Service('testservice', self.host, CheckCommand('testservice'))
         self.config = ShinkenModuleConfig()
-        self.config.set_value('templates_path', os.path.join(ROOT_PATH, 'templates', 'graphite'))
+        self.config.set_value('templates_path', os.path.join(ROOT_PATH, 'alignak_webui_graphite', 'etc',
+                                                             'modules', 'ui-graphite-templates'))
         self.config.set_value('hostcheck', '__HOST__')
         self.config.set_value('uri', 'http://example.com/graphite/')
+        self.config.set_value('prefix', '')
         self.config.set_value('tz', None)
         self.config.set_value('lineMode', None)
         self.config.set_value('color_warning', None)
@@ -523,7 +531,7 @@ class TestGraphFactory(unittest.TestCase):
         fact = GraphFactory(self.service_cpu, 0, 140000, source='detail', log=logging, cfg=self.config)
         self.assertEqual(fact.prefix, '')
         self.assertEqual(fact.postfix, '')
-        self.assertEqual(fact.template_path, os.path.join(self.config.templates_path, 'check_cpu.graph'))
+        self.assertEqual(fact.template_path, os.path.join(self.config.templates_path, 'check_cpu_-4h.graph'))
         with self.assertRaises(JSONTemplate.NotJsonTemplate):
             fact._parse_json_template(fact.template_path)
         self.assertEqual(fact.hostname, 'testhost')
@@ -532,10 +540,11 @@ class TestGraphFactory(unittest.TestCase):
         self.assertEqual(fact.style, self.styles['detail'])
         self.assertEqual(fact.get_style('test'), self.styles['default'])
         uris = fact.get_graph_uris()
+        print("URIs: %s" % uris)
         self.assertEqual(len(uris), 1)
         self.assertEqual(uris[0], {
-            'link': '''http://example.com/graphite/composer/?width=586&height=308&fontSize=8&fgcolor=000000&bgcolor=FFFFFF&areaMode=stacked&yMax=100&target=alias(legendValue(testhost.check_cpu._user_,"last"),"User")&target=alias(legendValue(testhost.check_cpu._sys_,"last"),"Sys")&target=alias(legendValue(testhost.check_cpu._softirq_,"last"),"SoftIRQ")&target=alias(legendValue(testhost.check_cpu._nice_,"last"),"Nice")&target=alias(legendValue(testhost.check_cpu._irq_,"last"),"IRQ")&target=alias(legendValue(testhost.check_cpu._iowait_,"last"),"I/O Wait")&target=alias(legendValue(testhost.check_cpu._idle_,"last"),"Idle")''',
-            'img_src': '''http://example.com/graphite/render/?width=586&height=308&fontSize=8&fgcolor=000000&bgcolor=FFFFFF&areaMode=stacked&yMax=100&target=alias(legendValue(testhost.check_cpu._user_,"last"),"User")&target=alias(legendValue(testhost.check_cpu._sys_,"last"),"Sys")&target=alias(legendValue(testhost.check_cpu._softirq_,"last"),"SoftIRQ")&target=alias(legendValue(testhost.check_cpu._nice_,"last"),"Nice")&target=alias(legendValue(testhost.check_cpu._irq_,"last"),"IRQ")&target=alias(legendValue(testhost.check_cpu._iowait_,"last"),"I/O Wait")&target=alias(legendValue(testhost.check_cpu._idle_,"last"),"Idle")'''
+            'link': '''http://example.com/graphite/composer/?width=586&height=308&fontSize=8&fgcolor=000000&bgcolor=FFFFFF&areaMode=stacked&from=-4hours&yMax=100&target=alias(legendValue(testhost.check_cpu._user_,"last"),"User")&target=alias(legendValue(testhost.check_cpu._sys_,"last"),"Sys")&target=alias(legendValue(testhost.check_cpu._softirq_,"last"),"SoftIRQ")&target=alias(legendValue(testhost.check_cpu._nice_,"last"),"Nice")&target=alias(legendValue(testhost.check_cpu._irq_,"last"),"IRQ")&target=alias(legendValue(testhost.check_cpu._iowait_,"last"),"I/O Wait")&target=alias(legendValue(testhost.check_cpu._idle_,"last"),"Idle")''',
+            'img_src': '''http://example.com/graphite/render/?width=586&height=308&fontSize=8&fgcolor=000000&bgcolor=FFFFFF&areaMode=stacked&from=-4hours&yMax=100&target=alias(legendValue(testhost.check_cpu._user_,"last"),"User")&target=alias(legendValue(testhost.check_cpu._sys_,"last"),"Sys")&target=alias(legendValue(testhost.check_cpu._softirq_,"last"),"SoftIRQ")&target=alias(legendValue(testhost.check_cpu._nice_,"last"),"Nice")&target=alias(legendValue(testhost.check_cpu._irq_,"last"),"IRQ")&target=alias(legendValue(testhost.check_cpu._iowait_,"last"),"I/O Wait")&target=alias(legendValue(testhost.check_cpu._idle_,"last"),"Idle")'''
         })
 
     def test_service_generate(self):

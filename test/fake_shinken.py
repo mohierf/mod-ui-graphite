@@ -4,10 +4,11 @@ __author__ = 'bjorn'
 
 
 class ShinkenObject(object):
-    class __metaclass__(type):
-        @property
-        def my_type(cls):
-            return cls.__name__.lower()
+    my_type = ''
+    # class __metaclass__(type):
+    #     @property
+    #     def my_type(cls):
+    #         return cls.__name__.lower()
 
     def __init__(self, check):
         self.customs = {}
@@ -27,6 +28,8 @@ class CheckCommand(object):
 
 
 class Host(ShinkenObject):
+    my_type = 'host'
+
     def __init__(self, hostname, check):
         ShinkenObject.__init__(self, check)
         self.host_name = hostname
@@ -34,6 +37,8 @@ class Host(ShinkenObject):
 
 
 class Service(ShinkenObject):
+    my_type = 'service'
+
     def __init__(self, name, host, check):
         ShinkenObject.__init__(self, check)
         self.host = host

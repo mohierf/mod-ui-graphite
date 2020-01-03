@@ -6,13 +6,56 @@ python:
   - "3.5"
   - "2.7"
 
-install:
-  - "[ -d test ] && ./test/setup_module_test.sh || : "
+env:
+  - ALIGNAK_DAEMON="test-broker"
 
-script: "[ -d test ] && cd ~/shinken/test && nosetests -vx --with-coverage --cover-package=module || :"
+install:
+  - ./test/setup_module_test.sh
+
+script:
+  # Unit tests
+  - cur_dir=$PWD
+  - echo "Current directory '$cur_dir' ..."
+  - export PYTHONPATH=$PYTHONPATH:$PWD
+#  - export PYTHONPATH=$PYTHONPATH:$PWD/test/tmp/shinken # we also need shinken test/modules...
+#  - export PYTHONPATH=$PYTHONPATH:$PWD/test/tmp/shinken/test # we also need shinken test/modules...
+  - echo "Python path '$PYTHONPATH' ..."
+  - cd test
+  - pytest -vv --durations=0 --no-print-logs --cov=alignak_webui_graphite --cov-report=xml --cov-config "$cur_dir"/test/.coveragerc "$cur_dir"/test/test.py
+
+#  # Static code analysis
+#  - cd "$cur_dir"
+#  # -- pycodestyle (former pep8)
+#  - pycodestyle --max-line-length=120 --ignore=E402,W503 --exclude='*.pyc' alignak_webui_graphite
+#  # -- pylint
+#  - pylint --rcfile=.pylintrc -r no alignak_webui_graphite
 
 after_success:
-  coveralls
+  - bash <(curl -s https://codecov.io/bash) -f test/coverage.xml
 
 notifications:
   email: false
+
+jobs:
+  include:
+    - stage: Coding standard
+      python: 3.6
+      script:
+        # Static code analysis
+        # -- pycodestyle (former pep8)
+        - pycodestyle --max-line-length=120 --ignore=E402,W503 --exclude='*.pyc' alignak_webui_graphite
+        # -- pylint
+        - pylint --rcfile=.pylintrc -r no alignak_webui_graphite
+    - stage: Pypi deployment
+      python: 3.6
+      script: echo "Deploying to PyPi..."
+      if: (tag IS present)
+      deploy:
+      - provider: pypi
+        distributions: "sdist bdist_wheel"
+        skip_existing: true
+        on:
+          tags: true
+        user: alignak
+        password:
+          secure: "CFgGhQq3h4+DGTdcqtXpamzLXW4fE5WedDIFMdIkqR2+co56iOP13qopIwjinZMhzMNfCOY314CZwh61HJKO36HAcr/eehhZxi+Vz3ZWzvL1j131g/8WA5wai8zptU94HioM5N0EqNVfF014ShyDgA4Tk+AC3j02AVtEkUCJh/4Tk1cC3OhhthK6l1yjhSKzFEhLvu0ULb0kxfsBLF6ILay6cD2vaeG4G34M+0oLqgxL8aixdk9evRb/0Xo69eJoJm0tbjb3B21rbLMVHnauFoU58jam9HeKY2sA8KDxbBIWE9uFGgqCCngSNmgRuEYdxrmUt+60kuRmm6EqCRcd7+Kj2hOQiA/UBjebivWZgVzAg5GF25ijiVeMwErlH+234RC36rRdQecDBnYlshzS/AV+1qpmmCac4RfIP2TnYE+tuU2lpMv1IigAMTcUxjSbtLabXdrKGWSY11iC6iiuBf/xc8b55gcksofHu3FggaO2ygsu+PlCo6qjaRMJKMXkmenobyqx4lEMnPcdphxmAnTW3ZkhxPf2E/cwzCSCDF4rUXcKSnrBBz7TTtFL5W93GzjqrjFbZd9Rn+Wskhk7Jw71aAy2DhI/BBy6Dk3AIF1q9yiB3FyBI2o3pYimrhfltQWp1FTvnRuWy9FaXc1O1KMbl2cvCq4iwQmQstwTU0c="
